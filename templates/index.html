@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Pulse - Developer Dashboard</title>
+    <meta name="description" content="Stay up to date with the latest Google Cloud BigQuery release notes and features. Filter, search, and share updates on Twitter easily.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="dark-theme">
+    <div class="glow-container">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="app-layout">
+        <!-- Sidebar Panel -->
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon"><i class="fa-solid fa-database"></i></span>
+                    <div class="logo-text">
+                        <h2>BQ Pulse</h2>
+                        <span>BigQuery Feed</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Search Box -->
+                <div class="control-group search-group">
+                    <label for="searchInput"><i class="fa-solid fa-magnifying-glass"></i> Search Updates</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="searchInput" placeholder="Search keywords (e.g. Gemini, SQL)..." aria-label="Search release notes">
+                        <button class="clear-search-btn" id="clearSearchBtn" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
+                <!-- Type Filters -->
+                <div class="control-group filter-group">
+                    <label><i class="fa-solid fa-filter"></i> Filter by Type</label>
+                    <div class="filter-pills" id="typeFilters">
+                        <button class="filter-pill active" data-type="all">All</button>
+                        <button class="filter-pill" data-type="feature"><span class="dot feature"></span> Features</button>
+                        <button class="filter-pill" data-type="change"><span class="dot change"></span> Changes</button>
+                        <button class="filter-pill" data-type="issue"><span class="dot issue"></span> Issues</button>
+                        <button class="filter-pill" data-type="deprecation"><span class="dot deprecation"></span> Deprecations</button>
+                    </div>
+                </div>
+
+                <!-- Analytics / Feed Statistics -->
+                <div class="stats-panel">
+                    <h3><i class="fa-solid fa-chart-simple"></i> Feed Summary</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-num" id="totalUpdatesCount">0</span>
+                            <span class="stat-label">Total Items</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-num" id="featuresCount">0</span>
+                            <span class="stat-label">Features</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <p>Data synced from Google Cloud RSS Feed</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="app-main">
+            <header class="app-header">
+                <div class="header-info">
+                    <h1 id="mainTitle">BigQuery Release Notes</h1>
+                    <p class="subtitle" id="lastUpdatedText">Checking for updates...</p>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-primary" aria-label="Refresh Feed">
+                        <span class="btn-icon"><i class="fa-solid fa-rotate" id="refreshSpinner"></i></span>
+                        <span class="btn-text">Sync Feed</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Loading Skeleton -->
+            <section class="feed-loading-container" id="feedLoading">
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+            </section>
+
+            <!-- Empty State -->
+            <section class="empty-state hidden" id="emptyState">
+                <div class="empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+                <h2>No updates found</h2>
+                <p>Try adjusting your filters or search terms, or refresh the feed to pull new updates.</p>
+                <button class="btn btn-secondary" id="resetFiltersBtn">Reset Filters</button>
+            </section>
+
+            <!-- Timeline Feed -->
+            <section class="feed-timeline" id="feedTimeline" aria-live="polite">
+                <!-- Dynamically populated -->
+            </section>
+        </main>
+
+        <!-- Tweet Composer Overlay (Sliding Drawer) -->
+        <div class="tweet-drawer" id="tweetDrawer">
+            <div class="drawer-header">
+                <h3><i class="fa-brands fa-twitter"></i> Tweet Composer</h3>
+                <button class="close-drawer-btn" id="closeDrawerBtn" aria-label="Close composer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="drawer-body">
+                <div class="selected-update-preview">
+                    <span class="preview-label">Selected Release:</span>
+                    <p id="selectedUpdateTextPreview">No update selected. Click "Share Update" on any note to compose a Tweet.</p>
+                </div>
+                <div class="composer-area">
+                    <label for="tweetTextArea">Your Tweet:</label>
+                    <textarea id="tweetTextArea" maxlength="280" placeholder="Customize your tweet before posting..."></textarea>
+                    <div class="composer-stats">
+                        <span class="char-counter" id="charCounter">280 characters remaining</span>
+                    </div>
+                </div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" id="cancelTweetBtn">Cancel</button>
+                <button class="btn btn-twitter" id="sendTweetBtn">
+                    <i class="fa-brands fa-twitter"></i> Share on X / Twitter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
