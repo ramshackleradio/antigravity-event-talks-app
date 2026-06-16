@@ -22,6 +22,12 @@ const resetFiltersBtn = document.getElementById('resetFiltersBtn');
 const exportCsvBtn = document.getElementById('exportCsvBtn');
 const themeToggle = document.getElementById('themeToggle');
 
+// Collapsible Mobile Sidebar Elements
+const menuToggleBtn = document.getElementById('menuToggleBtn');
+const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const appSidebar = document.getElementById('appSidebar');
+
 // Tweet Drawer DOM Elements
 const tweetDrawer = document.getElementById('tweetDrawer');
 const closeDrawerBtn = document.getElementById('closeDrawerBtn');
@@ -53,6 +59,17 @@ function initializeTheme() {
 }
 
 function setupEventListeners() {
+    // Mobile Sidebar controls
+    if (menuToggleBtn) {
+        menuToggleBtn.addEventListener('click', openMobileSidebar);
+    }
+    if (closeSidebarBtn) {
+        closeSidebarBtn.addEventListener('click', closeMobileSidebar);
+    }
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeMobileSidebar);
+    }
+
     // Theme toggle switch
     themeToggle.addEventListener('change', (e) => {
         if (e.target.checked) {
@@ -65,7 +82,10 @@ function setupEventListeners() {
     });
 
     // Export to CSV button
-    exportCsvBtn.addEventListener('click', exportFilteredToCSV);
+    exportCsvBtn.addEventListener('click', () => {
+        exportFilteredToCSV();
+        closeMobileSidebar();
+    });
 
     // Refresh feed
     refreshBtn.addEventListener('click', () => fetchReleases(true));
@@ -96,10 +116,14 @@ function setupEventListeners() {
         
         state.selectedType = pill.dataset.type;
         renderFeed();
+        closeMobileSidebar();
     });
     
     // Reset filters empty state button
-    resetFiltersBtn.addEventListener('click', resetFilters);
+    resetFiltersBtn.addEventListener('click', () => {
+        resetFilters();
+        closeMobileSidebar();
+    });
     
     // Tweet Drawer actions
     closeDrawerBtn.addEventListener('click', closeTweetDrawer);
@@ -108,6 +132,21 @@ function setupEventListeners() {
     tweetTextArea.addEventListener('input', updateCharCount);
     
     sendTweetBtn.addEventListener('click', executeTweetIntent);
+}
+
+// Mobile Sidebar toggle helpers
+function openMobileSidebar() {
+    if (appSidebar && sidebarOverlay) {
+        appSidebar.classList.add('active');
+        sidebarOverlay.classList.add('active');
+    }
+}
+
+function closeMobileSidebar() {
+    if (appSidebar && sidebarOverlay && window.innerWidth < 1024) {
+        appSidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+    }
 }
 
 // Toggle search clear button visibility
@@ -255,6 +294,60 @@ function showErrorState() {
 }
 
 // ==========================================================================
+// Search Match Highlighting Utility
+// ==========================================================================
+function highlightTextNodes(element, query) {
+    if (!query || query.trim() === '') return;
+    
+    // Walk through all text nodes inside the target container element
+    const walk = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+    const textNodes = [];
+    let node;
+    while (node = walk.nextNode()) {
+        textNodes.push(node);
+    }
+    
+    textNodes.forEach(node => {
+        const text = node.nodeValue;
+        const lowerText = text.toLowerCase();
+        const index = lowerText.indexOf(query);
+        
+        if (index >= 0) {
+            const parent = node.parentNode;
+            // Skip highlighting if parent is already a mark, or code blocks
+            if (parent.tagName === 'MARK' || parent.tagName === 'CODE' || parent.closest('code')) return;
+            
+            const fragment = document.createDocumentFragment();
+            let lastIndex = 0;
+            
+            let matchIndex = lowerText.indexOf(query, lastIndex);
+            while (matchIndex >= 0) {
+                // Add leading unmatched text
+                if (matchIndex > lastIndex) {
+                    fragment.appendChild(document.createTextNode(text.substring(lastIndex, matchIndex)));
+                }
+                
+                // Add highlighted match wrapped in <mark>
+                const mark = document.createElement('mark');
+                mark.className = 'search-highlight';
+                mark.textContent = text.substring(matchIndex, matchIndex + query.length);
+                fragment.appendChild(mark);
+                
+                lastIndex = matchIndex + query.length;
+                matchIndex = lowerText.indexOf(query, lastIndex);
+            }
+            
+            // Add trailing unmatched text
+            if (lastIndex < text.length) {
+                fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+            }
+            
+            parent.replaceChild(fragment, node);
+        }
+    });
+}
+
+// ==========================================================================
 // State Calculations & Rendering
 // ==========================================================================
 function calculateFeedStats() {
@@ -360,6 +453,11 @@ function renderFeed() {
                 cardContent.innerHTML = update.html;
                 card.appendChild(cardContent);
                 
+                // Apply search keyword highlighting if a search query exists
+                if (state.searchQuery) {
+                    highlightTextNodes(cardContent, state.searchQuery);
+                }
+                
                 // Actions (Copy Text + Share Tweet)
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
@@ -418,7 +516,6 @@ function renderFeed() {
     }
 }
 
-// Map entry h3 type to matching css badge class
 // Map entry h3 type to matching css badge class
 function getBadgeClass(type) {
     const t = type.toLowerCase();

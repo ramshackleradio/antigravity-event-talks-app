@@ -21,9 +21,28 @@
     </div>
 
     <div class="app-layout">
+        <!-- Mobile Header -->
+        <header class="mobile-header" id="mobileHeader">
+            <button id="menuToggleBtn" class="menu-toggle-btn" aria-label="Open filter sidebar">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="mobile-logo">
+                <span class="logo-icon-sm"><i class="fa-solid fa-database"></i></span>
+                <span class="logo-text-sm">BQ Pulse</span>
+            </div>
+            <!-- Empty element for spacing -->
+            <div style="width: 38px;"></div>
+        </header>
+
+        <!-- Sidebar Backdrop Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- Sidebar Panel -->
         <aside class="app-sidebar" id="appSidebar">
             <div class="sidebar-header">
+                <button id="closeSidebarBtn" class="close-sidebar-btn" aria-label="Close sidebar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
                 <div class="logo">
                     <span class="logo-icon"><i class="fa-solid fa-database"></i></span>
                     <div class="logo-text">
