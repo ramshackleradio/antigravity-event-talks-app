@@ -19,6 +19,8 @@ const feedTimeline = document.getElementById('feedTimeline');
 const feedLoading = document.getElementById('feedLoading');
 const emptyState = document.getElementById('emptyState');
 const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+const exportCsvBtn = document.getElementById('exportCsvBtn');
+const themeToggle = document.getElementById('themeToggle');
 
 // Tweet Drawer DOM Elements
 const tweetDrawer = document.getElementById('tweetDrawer');
@@ -33,11 +35,38 @@ const selectedUpdateTextPreview = document.getElementById('selectedUpdateTextPre
 // Initialization & Event Listeners
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
     fetchReleases();
     setupEventListeners();
 });
 
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    // Default to dark theme if not set
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        themeToggle.checked = true;
+    } else {
+        document.body.classList.remove('light-theme');
+        themeToggle.checked = false;
+    }
+}
+
 function setupEventListeners() {
+    // Theme toggle switch
+    themeToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.body.classList.add('light-theme');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.body.classList.remove('light-theme');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+
+    // Export to CSV button
+    exportCsvBtn.addEventListener('click', exportFilteredToCSV);
+
     // Refresh feed
     refreshBtn.addEventListener('click', () => fetchReleases(true));
     
@@ -103,6 +132,70 @@ function resetFilters() {
     state.selectedType = 'all';
     
     renderFeed();
+}
+
+// ==========================================================================
+// CSV Export Functionality
+// ==========================================================================
+function exportFilteredToCSV() {
+    // Gather matching items using the same filter criteria as renderFeed
+    const itemsToExport = [];
+    
+    state.releases.forEach(release => {
+        const filtered = release.updates.filter(update => {
+            const matchesType = state.selectedType === 'all' || 
+                                update.type.toLowerCase() === state.selectedType;
+                                
+            const matchesSearch = !state.searchQuery || 
+                                 update.text.toLowerCase().includes(state.searchQuery) ||
+                                 update.type.toLowerCase().includes(state.searchQuery) ||
+                                 release.date.toLowerCase().includes(state.searchQuery);
+                                 
+            return matchesType && matchesSearch;
+        });
+        
+        filtered.forEach(update => {
+            itemsToExport.push({
+                date: release.date,
+                type: update.type,
+                link: release.link,
+                text: update.text
+            });
+        });
+    });
+    
+    if (itemsToExport.length === 0) {
+        alert("No release updates found matching the current search/filter criteria.");
+        return;
+    }
+    
+    // Generate CSV string
+    let csvContent = "\uFEFF"; // Byte Order Mark for Excel UTF-8 support
+    csvContent += "Date,Update Type,Release Notes Link,Description\n";
+    
+    itemsToExport.forEach(item => {
+        // Escape double quotes by doubling them
+        const cleanText = item.text.replace(/"/g, '""');
+        const cleanDate = item.date.replace(/"/g, '""');
+        const cleanType = item.type.replace(/"/g, '""');
+        const cleanLink = item.link.replace(/"/g, '""');
+        
+        csvContent += `"${cleanDate}","${cleanType}","${cleanLink}","${cleanText}"\n`;
+    });
+    
+    // Create download element
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `bigquery_release_notes_${dateStamp}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // ==========================================================================
@@ -267,10 +360,33 @@ function renderFeed() {
                 cardContent.innerHTML = update.html;
                 card.appendChild(cardContent);
                 
-                // Actions (Share Tweet)
+                // Actions (Copy Text + Share Tweet)
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
                 
+                // Copy Button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'btn-copy-card';
+                copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy';
+                copyBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        const copyString = `BigQuery Update (${release.date}) - [${update.type}]: ${update.text}`;
+                        await navigator.clipboard.writeText(copyString);
+                        
+                        copyBtn.classList.add('copied');
+                        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                        setTimeout(() => {
+                            copyBtn.classList.remove('copied');
+                            copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy text: ', err);
+                        alert('Could not copy to clipboard.');
+                    }
+                });
+
+                // Tweet Button
                 const shareBtn = document.createElement('button');
                 shareBtn.className = 'btn-tweet-card';
                 shareBtn.innerHTML = '<i class="fa-brands fa-twitter"></i> Select to Tweet';
@@ -280,6 +396,7 @@ function renderFeed() {
                     openTweetDrawer();
                 });
                 
+                cardActions.appendChild(copyBtn);
                 cardActions.appendChild(shareBtn);
                 card.appendChild(cardActions);
                 
@@ -301,6 +418,7 @@ function renderFeed() {
     }
 }
 
+// Map entry h3 type to matching css badge class
 // Map entry h3 type to matching css badge class
 function getBadgeClass(type) {
     const t = type.toLowerCase();
